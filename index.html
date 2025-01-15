@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Countdown Timer with Music</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(to bottom, #1e3c72, #2a5298);
+            color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            position: relative;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: crosshair; /* 鼠标样式 */
+        }
+        h1 {
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .settings input[type="number"],
+        .settings button {
+            padding: 12px;
+            font-weight: bold;
+            margin: 10px;
+            background: #6200ea;
+            color: white;
+            border: none;
+            border-radius: 12px;
+        }
+        .settings button:hover {
+            background: #3700b3;
+        }
+        #countdown {
+            font-size: 3em;
+            font-weight: bold;
+            color: #ffeb3d;
+            margin: 20px 0;
+        }
+        .btn-group {
+            display: flex;
+            justify-content: center;
+        }
+        .btn-group button {
+            background: #03a9f4;
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            margin: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-group button:hover {
+            background: #0288d1;
+        }
+        #celebration {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 10;
+        }
+        #celebration img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .note {
+            position: absolute;
+            width: 30px;
+            transition: opacity 1s linear, transform 1s linear;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #bgMusicControl {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #03a9f4;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #bgMusicControl:hover {
+            background: #0288d1;
+        }
+        #progress-bar-container {
+            position: fixed;
+            bottom: 50px;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            background-color: #ddd;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0;
+            background-color: #6200ea;
+            transition: width 0.3s linear;
+        }
+        #progress-gif {
+            position: absolute;
+            height: 50px;
+            bottom: -10px;
+            left: 0;
+            transition: left 0.3s linear;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Edison Countdown Timer</h1>
+
+    <div class="settings">
+        <input id="hours" type="number" placeholder="Hours (0-23)" min="0" max="23">
+        <input id="minutes" type="number" placeholder="Minutes (0-59)" min="0" max="59">
+        <input id="seconds" type="number" placeholder="Seconds (0-59)" min="0" max="59">
+        <br>
+
+        <div class="btn-group">
+            <button onclick="startCountdown()">Start</button>
+            <button onclick="pauseCountdown()">Pause/Resume</button>
+            <button onclick="cancelCountdown()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="countdown">00:00:00</div>
+
+    <!-- 全屏动态图片容器 -->
+    <div id="celebration">
+        <img src="images/celebration.gif" alt="Celebration">
+    </div>
+
+    <!-- 音乐元素 -->
+    <audio id="countdownSound" src="sounds/countdown.mp3"></audio>
+    <audio id="startSound" src="sounds/orb.mp3"></audio>
+    <audio id="pauseSound" src="sounds/ni-gan-ma-ha-ha-yo.mp3"></audio>
+    <audio id="bgMusic" src="sounds/untitled_3.mp3" loop></audio>
+    <audio id="cancelSound" src="sounds/super-mario-death-sound-sound-effect.mp3"></audio>
+
+    <!-- 背景音乐控制按钮 -->
+    <button id="bgMusicControl" onclick="toggleBgMusic()">Play Music</button>
+
+    <!-- 进度条容器 -->
+    <div id="progress-bar-container">
+        <div id="progress-bar"></div>
+        <img id="progress-gif" src="images/progress.gif" alt="Progress GIF">
+    </div>
+
+    <script>
+        let countdownInterval;
+        let remainingTime = 0;
+        let totalTime = 0;
+        let isPaused = false;
+        let isBgMusicPlaying = false;
+
+        function startCountdown() {
+            playEffectSound("startSound");
+            clearInterval(countdownInterval);
+            const hours = parseInt(document.getElementById('hours').value) || 0;
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+
+            totalTime = remainingTime = (hours * 3600) + (minutes * 60) + seconds;
+
+            if (remainingTime <= 0) {
+                alert('Please enter a valid countdown time');
+                return;
+            }
+
+            isPaused = false;
+            document.getElementById("celebration").style.display = "none";
+
+            resetProgressBar();
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        function pauseCountdown() {
+            playEffectSound("pauseSound");
+            if (isPaused) {
+                countdownInterval = setInterval(updateCountdown, 1000);
+            } else {
+                clearInterval(countdownInterval);
+            }
+            isPaused = !isPaused;
+        }
+
+        function cancelCountdown() {
+            clearInterval(countdownInterval);
+            remainingTime = 0;
+            document.getElementById('countdown').innerText = '00:00:00';
+            hideCelebration();
+            stopSound("countdownSound");
+            resetProgressBar();
+            playEffectSound("cancelSound");
+        }
+
+        function updateCountdown() {
+            if (remainingTime <= 0) {
+                clearInterval(countdownInterval);
+                document.getElementById('countdown').innerText = '你干嘛？？？   哎呀！！!';
+                showCelebration();
+                playSound("countdownSound");
+                resetProgressBar();
+                remainingTime = 0; // 重置剩余时间
+                return;
+            }
+
+            const hrs = Math.floor(remainingTime / 3600);
+            const mins = Math.floor((remainingTime % 3600) / 60);
+            const secs = remainingTime % 60;
+
+            document.getElementById('countdown').innerText =
+                `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            updateProgressBar();
+            remainingTime -= 1;
+        }
+
+        function resetProgressBar() {
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-gif').style.left = '0';
+        }
+
+        function updateProgressBar() {
+            const progressBar = document.getElementById('progress-bar');
+            const progressGif = document.getElementById('progress-gif');
+
+            const progress = ((totalTime - remainingTime) / totalTime) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            const containerWidth = document.getElementById('progress-bar-container').offsetWidth;
+            const gifWidth = progressGif.offsetWidth;
+
+            const gifLeft = (progress / 100) * (containerWidth - gifWidth);
+            progressGif.style.left = `${gifLeft}px`;
+        }
+
+        function playSound(id) {
+            const audio = document.getElementById(id);
+            audio.play();
+        }
+
+        function stopSound(id) {
+            const audio = document.getElementById(id);
+            audio.pause();
+            audio.currentTime = 0;
+        }
+
+        function playEffectSound(id) {
+            const audio = document.getElementById(id);
+            audio.currentTime = 0; // Reset sound
+            audio.play();
+        }
+
+        function showCelebration() {
+            const celebration = document.getElementById("celebration");
+            celebration.style.display = "block";
+            setTimeout(hideCelebration, 5000); // 自动隐藏图片
+        }
+
+        function hideCelebration() {
+            const celebration = document.getElementById("celebration");
+            celebration.style.display = "none";
+            stopSound("countdownSound");
+        }
+
+        function toggleBgMusic() {
+            const bgMusic = document.getElementById("bgMusic");
+            const controlButton = document.getElementById("bgMusicControl");
+
+            if (isBgMusicPlaying) {
+                bgMusic.pause();
+                controlButton.innerText = "Click here!!";
+            } else {
+                bgMusic.play();
+                controlButton.innerText = "Stop now!!";
+            }
+            isBgMusicPlaying = !isBgMusicPlaying;
+        }
+
+        document.body.addEventListener('mousemove', (event) => {
+            // 创建音符元素
+            const note = document.createElement('img');
+            note.src = 'images/kun.png';
+            note.className = 'note';
+
+            // 设置音符位置
+            note.style.left = `${event.pageX}px`;
+            note.style.top = `${event.pageY}px`;
+
+            // 添加音符到页面
+            document.body.appendChild(note);
+
+
+            setTimeout(() => {
+                note.style.opacity = 0; // 渐隐
+                note.style.transform = 'scale(1.5)'; // 放大效果
+            }, 50);
+
+            setTimeout(() => {
+                note.remove();
+            }, 1000); // 1秒后自动删除
+        });
+
+    </script>
+
+</body>
+</html>
